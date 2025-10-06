@@ -1,6 +1,7 @@
 ﻿//Copyright (C) 2025 Hongyi Chen (BeanPieChen)
 //Licensed under the MIT License
 
+#include <cstddef>
 #include <SDL3/SDL.h>
 #include <ft2build.h>
 #include FT_FREETYPE_H
@@ -17,17 +18,19 @@
 
 uint8_t* LoadFile(const char* path, size_t* size) {
 	FILE* fp = fopen(path, "rb");
+	size_t file_size;
+	uint8_t* buffer;
 	if (!fp)
 		goto open_fail;
 	fseek(fp, 0, SEEK_END);
-	size_t file_size = ftell(fp);
+	file_size = ftell(fp);
 	if (file_size == 0)
 		goto read_fail;
-	uint8_t* buffer = new uint8_t[file_size];
+	buffer = new uint8_t[file_size];
 	if (buffer == nullptr)
 		goto read_fail;
 	fseek(fp, 0, SEEK_SET);
-	fread_s(buffer, file_size, 1, file_size, fp);
+	fread(buffer, file_size, 1, fp);
 	fclose(fp);
 	*size = file_size;
 	return buffer;
@@ -42,7 +45,6 @@ open_fail:
 float text_height = 0;
 float offset = 0;
 float offset_max = 0;
-uint32_t win_size_change;
 
 CPPos spos = { 0,0,false };
 CPPos ipos = { 0,0,false };
@@ -276,30 +278,26 @@ int main(int argc, char** argv) {
 		goto sdl_init_fail;
 	}
 
-	win_size_change = SDL_RegisterEvents(1);
-
-	char* cd = SDL_GetCurrentDirectory();
-	std::cout << cd << std::endl;
-	SDL_free(cd);
-
 	main_win = SDL_CreateWindow("TextEngineDemo", 640, 480, SDL_WINDOW_RESIZABLE);
 	if (!main_win) {
 		std::cout << "Main Window Creation Failed" << std::endl;
 		goto win_init_fail;
 	}
 
-	int i = 0;
-	for (;i < font_num;++i) {
-		size_t size;
-		font_file_buffer[i] = LoadFile(font_path[i],&size);
-		if (font_file_buffer[i] == nullptr)
-			break;
-		if (ff->AddFont(font_file_buffer[i], size) == nullptr)
-			break;
-	}
-	if (i < font_num) {
-		std::cout << "Font File Load Failed" << std::endl;
-		goto font_load_fail;
+	{
+		int i = 0;
+		for (;i < font_num;++i) {
+			size_t size;
+			font_file_buffer[i] = LoadFile(font_path[i], &size);
+			if (font_file_buffer[i] == nullptr)
+				break;
+			if (ff->AddFont(font_file_buffer[i], size) == nullptr)
+				break;
+		}
+		if (i < font_num) {
+			std::cout << "Font File Load Failed" << std::endl;
+			goto font_load_fail;
+		}
 	}
 
 	LineBreakInit();

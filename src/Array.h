@@ -5,6 +5,7 @@
 //Licensed under the MIT License
 
 #include <stdexcept>
+#include <cstddef>
 #include "MAllocUtils.h"
 #include "ContainerUtils.h"
 

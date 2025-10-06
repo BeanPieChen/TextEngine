@@ -3,8 +3,8 @@
 #ifndef LINE_BREAKER_H
 #define LINE_BREAKER_H
 
+#include <cstddef>
 #include <cstdint>
-
 
 class LineBreaker {
 public:

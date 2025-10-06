@@ -148,13 +148,14 @@ void FontCollection::SetHeightInPixel(uint32_t pixel_height) {
 
 Font* FontCollection::AddFont(uint8_t* buffer, size_t size) {
 	FT_Face face;
+	Font* font = nullptr;
 	if(FT_New_Memory_Face(this->ft_lib, buffer, size, 0, &face))
 		goto ft_create_fail;
 	if(FT_Set_Pixel_Sizes(face, 0, this->pixel_height))
 		goto ft_face_set_fail;
 	if (FT_Select_Charmap(face, FT_ENCODING_UNICODE))
 		goto ft_face_set_fail;
-	Font* font = new Font;
+	font = new Font;
 	font->ff = this;
 	font->face = face;
 	font->hb_font = hb_ft_font_create_referenced(face);

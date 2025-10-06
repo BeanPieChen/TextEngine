@@ -1,6 +1,8 @@
 #ifndef MALLOC_UTILS_H
 #define MALLOC_UTILS_H
 
+#include <cstddef>
+
 //Copyright (C) 2025 Hongyi Chen (BeanPieChen)
 //Licensed under the MIT License
 

@@ -123,6 +123,14 @@ struct TextSegment {
 	size_t len;
 	hb_script_t script;
 	Font* font;
+
+	TextSegment(
+		size_t index,
+		size_t start,
+		size_t len,
+		hb_script_t script,
+		Font* font
+	):index(index),start(start),len(len),script(script),font(font){ }
 };
 
 
@@ -143,7 +151,7 @@ void AppendNewSegment(
 		}
 	}
 
-	segments.PushBack({segments.GetSize(),start,len,script,font });
+	segments.PushBack(TextSegment(segments.GetSize(), start, len, script, font));
 }
 
 
@@ -408,7 +416,7 @@ void TextEngine::_DecodeUtf8(const char* utf8_str, size_t len, Array<CPInfo>& cp
 		uint32_t code;
 		int nb = UTF8Decode((const unsigned char*)utf8_str, i, len, code);
 		if (nb > 0) {
-			cps.Push({ code,false });
+			cps.Push(CPInfo(code));
 			i += nb;
 		}
 		else
@@ -484,12 +492,12 @@ void TextEngine::_Append(const Array<CPInfo>& cps) {
 
 CPPos TextEngine::_GPos2CPPos(const GlyphPos& gp) {
 	if (PARAGRAPH_NUM == 0)
-		return { 0,0 };
+		return CPPos();
 	if (LINE_NUM(gp.paragraph) == 0 || GLYPH_NUM(gp.paragraph, gp.line) == 0)
-		return { gp.paragraph,0 };
+		return CPPos(gp.paragraph);
 	if (gp.glyph < GLYPH_NUM(gp.paragraph, gp.line)) {
 		if (GLYPH(gp.paragraph, gp.line, gp.glyph).is_ltr) {
-			CPPos ret = { gp.paragraph,GLYPH(gp.paragraph,gp.line,gp.glyph).map };
+			CPPos ret(gp.paragraph, GLYPH(gp.paragraph, gp.line, gp.glyph).map, false);
 			if (gp.after) {
 				if (gp.glyph + 1 < GLYPH_NUM(gp.paragraph, gp.line))
 					ret = this->_PreNextMappedCP(ret, true);
@@ -501,7 +509,7 @@ CPPos TextEngine::_GPos2CPPos(const GlyphPos& gp) {
 			return ret;
 		}
 		else {
-			CPPos ret = { gp.paragraph,GLYPH(gp.paragraph,gp.line,gp.glyph).map };
+			CPPos ret(gp.paragraph, GLYPH(gp.paragraph, gp.line, gp.glyph).map, false);
 			if (!gp.after) {
 				if (gp.glyph == 0) {
 					if (gp.line + 1 < LINE_NUM(gp.paragraph))
@@ -517,7 +525,7 @@ CPPos TextEngine::_GPos2CPPos(const GlyphPos& gp) {
 		}
 	}
 	else {
-		CPPos ret = { gp.paragraph,GLYPH(gp.paragraph, gp.line, GLYPH_NUM(gp.paragraph, gp.line) - 1).map };
+		CPPos ret(gp.paragraph, GLYPH(gp.paragraph, gp.line, GLYPH_NUM(gp.paragraph, gp.line) - 1).map, false);
 		if (GLYPH(gp.paragraph, gp.line, GLYPH_NUM(gp.paragraph, gp.line) - 1).is_ltr) {
 			if (gp.line + 1 < LINE_NUM(gp.paragraph))
 				ret.eol = true;
@@ -585,16 +593,20 @@ bool TextEngine::_CPPos2GPos(const CPPos& cpp, GlyphPos& gp) {
 
 
 CPPos TextEngine::_NextCodepoint(const CPPos& cpp) {
-	if (PARAGRAPH_NUM == 0)
-		return { 0,0 };
 	CPPos ret;
-	if (cpp.cp < CP_NUM(cpp.paragraph))
-		ret = { cpp.paragraph,cpp.cp + 1 };
+	if (PARAGRAPH_NUM == 0)
+		return ret;
+	if (cpp.cp < CP_NUM(cpp.paragraph)) {
+		ret.paragraph = cpp.paragraph;
+		ret.cp = cpp.cp + 1;
+	}
 	else {
-		if (cpp.paragraph + 1 < this->paragraphs.GetSize())
-			ret = { cpp.paragraph + 1,0 };
+		if (cpp.paragraph + 1 < this->paragraphs.GetSize()) {
+			ret.paragraph = cpp.paragraph + 1;
+			ret.cp = 0;
+		}
 		else
-			return { cpp.paragraph,cpp.cp };
+			return CPPos(cpp.paragraph, cpp.cp, false);
 	}
 
 	return cpp.eol ? _NextCodepoint(ret) : ret;
@@ -603,25 +615,25 @@ CPPos TextEngine::_NextCodepoint(const CPPos& cpp) {
 
 CPPos TextEngine::PreCodepoint(const CPPos& cpp) {
 	if (PARAGRAPH_NUM == 0)
-		return { 0,0 };
+		return CPPos();
 	if (cpp.eol)
-		return { cpp.paragraph,cpp.cp };
+		return CPPos(cpp.paragraph, cpp.cp, false);
 	if (cpp.cp > 0)
-		return { cpp.paragraph,cpp.cp - 1 };
+		return CPPos(cpp.paragraph, cpp.cp - 1, false);
 	else{
 		if (cpp.paragraph == 0)
 			return cpp;
 		else
-			return { cpp.paragraph - 1, CP_NUM(cpp.paragraph - 1)};
+			return CPPos(cpp.paragraph - 1, CP_NUM(cpp.paragraph - 1), false);
 	}
 }
 
 
 CPPos TextEngine::_PreNextMappedCP(const CPPos& cpp, bool is_next) {
-	if (PARAGRAPH_NUM == 0)
-		return { 0,0 };
-	CPPos old = cpp;
 	CPPos ret;
+	if (PARAGRAPH_NUM == 0)
+		return ret;
+	CPPos old = cpp;
 	while (true) {
 		ret = is_next ? this->_NextCodepoint(old) : this->PreCodepoint(old);
 		if (ret == old)
@@ -640,7 +652,7 @@ CPPos TextEngine::_PreNextMappedCP(const CPPos& cpp, bool is_next) {
 
 GlyphPos TextEngine::_FindGlyphPos(size_t paragraph, size_t line, float x) {
 	if (LINE_NUM(paragraph) == 0)
-		return { paragraph,0,0 };
+		return GlyphPos(paragraph, 0, 0, false);
 	float w = 0;
 	size_t g = 0;
 	size_t cluster_start = g;
@@ -651,9 +663,9 @@ GlyphPos TextEngine::_FindGlyphPos(size_t paragraph, size_t line, float x) {
 		else {
 			if (x >= w && x < w + cluster_adv) {
 				if (x < w + cluster_adv / 2)
-					return { paragraph,line,cluster_start };
+					return GlyphPos(paragraph, line, cluster_start, false);
 				else
-					return { paragraph,line,cluster_start,true };
+					return GlyphPos(paragraph, line, cluster_start, true);
 			}
 			w += cluster_adv;
 			cluster_start = g;
@@ -663,9 +675,9 @@ GlyphPos TextEngine::_FindGlyphPos(size_t paragraph, size_t line, float x) {
 		++g;
 	}
 	if (x < w + cluster_adv / 2)
-		return { paragraph,line,cluster_start };
+		return GlyphPos(paragraph, line, cluster_start, false);
 	else
-		return { paragraph,line,cluster_start,true };
+		return GlyphPos(paragraph, line, cluster_start, true);
 }
 
 
@@ -728,7 +740,7 @@ void TextEngine::Append(const char* utf8_str, size_t len) {
 
 
 CPPos TextEngine::Insert(const char* utf8_str, size_t len, const CPPos& pos) {
-	CPPos _pos = pos.eol ? this->_PreNextMappedCP({ pos.paragraph,pos.cp,false }, true) : pos;
+	CPPos _pos = pos.eol ? this->_PreNextMappedCP(CPPos(pos.paragraph, pos.cp, false), true) : pos;
 	Array<CPInfo> cps;
 	this->_DecodeUtf8(utf8_str, len, cps);
 	size_t cp_num = cps.GetSize();
@@ -831,8 +843,8 @@ CPPos TextEngine::Insert(const char* utf8_str, size_t len, const CPPos& pos) {
 
 
 void TextEngine::Delete(const CPPos& a, const CPPos& b) {
-	CPPos _a = a.eol ? this->_PreNextMappedCP({ a.paragraph,a.cp,false }, true) : a;
-	CPPos _b = b.eol ? this->_PreNextMappedCP({ b.paragraph,b.cp,false }, true) : b;
+	CPPos _a = a.eol ? this->_PreNextMappedCP(CPPos(a.paragraph, a.cp, false), true) : a;
+	CPPos _b = b.eol ? this->_PreNextMappedCP(CPPos(b.paragraph, b.cp, false), true) : b;
 	if (_a == _b)
 		return;
 	if (_b.paragraph < _a.paragraph)
@@ -862,9 +874,9 @@ void TextEngine::Delete(const CPPos& a, const CPPos& b) {
 }
 
 
-CPPos TextEngine::Replace(const char* utf8_str, size_t len, const CPPos& a, const const CPPos& b) {
-	CPPos _a = a.eol ? this->_PreNextMappedCP({ a.paragraph,a.cp,false }, true) : a;
-	CPPos _b = b.eol ? this->_PreNextMappedCP({ b.paragraph,b.cp,false }, true) : b;
+CPPos TextEngine::Replace(const char* utf8_str, size_t len, const CPPos& a, const CPPos& b) {
+	CPPos _a = a.eol ? this->_PreNextMappedCP(CPPos(a.paragraph, a.cp, false), true) : a;
+	CPPos _b = b.eol ? this->_PreNextMappedCP(CPPos(b.paragraph, b.cp, false), true) : b;
 	if (_a == _b)
 		return this->Insert(utf8_str, len, _a);
 	if (_b.paragraph < _a.paragraph)
@@ -893,13 +905,13 @@ CPPos TextEngine::Hit(float lh, float x, float y) {
 	float h = 0;
 	size_t pn = this->GetParagarphNum();
 	if (pn == 0)
-		return { 0,0,0 };
+		return CPPos();
 	GlyphPos hit_pos;
 	CPPos ret;
 	for (size_t p = 0;p < pn;++p) {
 		if (LINE_NUM(p) == 0) {
 			if (y >= h && y < h + lh)
-				return { p,0,0 };
+				return CPPos(p);
 			else
 				h += lh;
 		}
@@ -917,7 +929,7 @@ CPPos TextEngine::Hit(float lh, float x, float y) {
 			}
 		}
 	}
-	return { UINT_DECREASE(pn),0,0 };
+	return CPPos(UINT_DECREASE(pn));
 }
 
 
@@ -942,7 +954,7 @@ bool TextEngine::ComputeCursorPos(const CPPos& pos, float lh, float& x, float& y
 
 CPPos TextEngine::CheckCursorPos(const CPPos& cpp) {
 	if (this->paragraphs.GetSize() == 0)
-		return { 0,0 };
+		return CPPos();
 	if (cpp.cp > CP_NUM(cpp.paragraph))
 		return { cpp.paragraph,CP_NUM(cpp.paragraph)};
 	if (cpp.cp < CP_NUM(cpp.paragraph)) {
@@ -951,11 +963,11 @@ CPPos TextEngine::CheckCursorPos(const CPPos& cpp) {
 		if (cpp.eol) {
 			if (!CP_FLAG_GET(CP(cpp.paragraph, cpp.cp).flags, CP_FLAG_IS_RTL)) {
 				if (CP(cpp.paragraph, cpp.cp).start + CP(cpp.paragraph, cpp.cp).len < GLYPH_NUM(cpp.paragraph, CP(cpp.paragraph, cpp.cp).line))
-					return this->_PreNextMappedCP({ cpp.paragraph, cpp.cp, false }, true);
+					return this->_PreNextMappedCP(CPPos(cpp.paragraph, cpp.cp, false), true);
 			}
 			else {
-				if(CP(cpp.paragraph, cpp.cp).start>0)
-					return this->_PreNextMappedCP({ cpp.paragraph, cpp.cp, false }, true);
+				if (CP(cpp.paragraph, cpp.cp).start > 0)
+					return this->_PreNextMappedCP(CPPos(cpp.paragraph, cpp.cp, false), true);
 			}
 		}
 	}
@@ -1051,22 +1063,22 @@ void SwapCP(CPPos& a, CPPos& b) {
 
 
 bool TextEngine::IsGlyphInRange(const GlyphPos& gp, const CPPos& a, const CPPos& b) {
-	CPPos _a = a.eol ? this->_PreNextMappedCP({ a.paragraph,a.cp,false }, true) : a;
-	CPPos _b = b.eol ? this->_PreNextMappedCP({ b.paragraph,b.cp,false }, true) : b;
+	CPPos _a = a.eol ? this->_PreNextMappedCP(CPPos(a.paragraph, a.cp, false), true) : a;
+	CPPos _b = b.eol ? this->_PreNextMappedCP(CPPos(b.paragraph, b.cp, false), true) : b;
 	if (_a == _b)
 		return false;
 	if (_b.paragraph < _a.paragraph)
 		CP_SWAP(_a, _b)
 	else if (_a.paragraph == _b.paragraph && _b.cp < _a.cp)
 		CP_SWAP(_a, _b);
-	CPPos cpp = this->_GPos2CPPos({ gp.paragraph,gp.line,gp.glyph,false });
+	CPPos cpp = this->_GPos2CPPos(GlyphPos(gp.paragraph, gp.line, gp.glyph, false));
 	if (
 		gp.paragraph < this->paragraphs.GetSize()
 		&& gp.line < LINE_NUM(gp.paragraph)
 		&& gp.glyph < GLYPH_NUM(gp.paragraph, gp.line)
 		&& !GLYPH(gp.paragraph, gp.line, gp.glyph).is_ltr
 		)
-		cpp = this->_GPos2CPPos({ gp.paragraph,gp.line,gp.glyph,true });
+		cpp = this->_GPos2CPPos(GlyphPos(gp.paragraph, gp.line, gp.glyph, true));
 	if (cpp.paragraph < _a.paragraph || cpp.paragraph > _b.paragraph)
 		return false;
 	bool ret = true;

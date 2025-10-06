@@ -4,6 +4,8 @@
 //Copyright (C) 2025 Hongyi Chen (BeanPieChen)
 //Licensed under the MIT License
 
+#include <stdexcept>
+#include <cstddef>
 #include <cstdint>
 #include <climits>
 #include <cmath>

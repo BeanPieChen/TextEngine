@@ -4,6 +4,7 @@
 //Copyright (C) 2025 Hongyi Chen (BeanPieChen)
 //Licensed under the MIT License
 
+#include <cstddef>
 #include <cstdint>
 #include <SheenBidi/SheenBidi.h>
 #include "Array.h"
@@ -23,11 +24,20 @@
 
 struct CPInfo {
 	uint32_t codepoint;
-	uint8_t flags = 0x0U;
+	uint8_t flags;
 	size_t line;
 	size_t start;
 	size_t len;
+
+	CPInfo(
+		uint32_t codepoint = 0,
+		uint8_t flags = 0x0U,
+		size_t line = 0,
+		size_t start = 0,
+		size_t len = 0
+		):codepoint(codepoint),flags(flags),line(line),start(start),len(len){ }
 };
+
 
 struct MappedGlyph {
 	size_t map;
@@ -70,19 +80,28 @@ public:
 };
 
 
-typedef struct {
+struct GlyphPos {
 	size_t paragraph;
 	size_t line;
 	size_t glyph;
-	bool after = false;
-} GlyphPos;
+	bool after;
+
+	GlyphPos(
+		size_t paragraph = 0,
+		size_t line = 0,
+		size_t glyph = 0,
+		bool after = false
+	) :paragraph(paragraph), line(line), glyph(glyph), after(after) {}
+};
 
 
 struct CPPos {
 	size_t paragraph;
 	size_t cp;
-	bool eol = false;
+	bool eol;
 	
+	CPPos(size_t paragraph = 0, size_t cp = 0, bool eol = false) :paragraph(paragraph), cp(cp), eol(eol){}
+
 	bool operator==(const CPPos& right) const {
 		if (
 			this->paragraph == right.paragraph 
@@ -142,7 +161,7 @@ public:
 	void Append(const char* utf8_str, size_t len);
 	CPPos Insert(const char* utf8_str, size_t len, const CPPos& pos);
 	void Delete(const CPPos& start, const CPPos& end);
-	CPPos Replace(const char* utf8_str, size_t len, const CPPos& start, const const CPPos& end);
+	CPPos Replace(const char* utf8_str, size_t len, const CPPos& start, const CPPos& end);
 	size_t GetParagarphNum();
 	Paragraph* GetParagraph(size_t index);
 	CPPos Hit(float lh, float x, float y);
