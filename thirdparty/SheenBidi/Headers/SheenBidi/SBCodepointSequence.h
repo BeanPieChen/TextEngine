@@ -1,0 +1,50 @@
+/*
+ * Copyright (C) 2016-2025 Muhammad Tayyab Akram
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef _SB_PUBLIC_CODEPOINT_SEQUENCE_H
+#define _SB_PUBLIC_CODEPOINT_SEQUENCE_H
+
+#include <SheenBidi/SBBase.h>
+#include <SheenBidi/SBCodepoint.h>
+
+SB_EXTERN_C_BEGIN
+
+typedef SBCodepoint(*SBCodepointAt)(const void* codepoints, SBUInteger index);
+
+typedef struct _SBCodepointSequence {
+    SBCodepointAt codepointAt;
+    const void *codepoints;        /**< The source string containing the code units. */
+    SBUInteger length;         /**< The length of the string in terms of code units. */
+} SBCodepointSequence;
+
+/**
+ * Returns the code point at the given string index.
+ *
+ * @param codepointSequence
+ *      The object holding the information of the string.
+ * @param stringIndex
+ *      The index of code unit at which to get the code point. On output, it is set to point to the
+ *      first code unit of next code point.
+ * @return
+ *      The code point at the given string index, or SBCodepointInvalid if stringIndex is larger
+ *      than or equal to actual length of source string.
+ */
+SB_PUBLIC SBCodepoint SBCodepointSequenceGetCodepointAt(
+    const SBCodepointSequence *codepointSequence, SBUInteger *stringIndex);
+
+SB_EXTERN_C_END
+
+#endif

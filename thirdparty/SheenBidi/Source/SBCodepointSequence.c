@@ -1,0 +1,47 @@
+/*
+ * Copyright (C) 2016-2025 Muhammad Tayyab Akram
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#include <SheenBidi/SBConfig.h>
+
+#include "SBBase.h"
+#include "SBCodepoint.h"
+#include "SBCodepointSequence.h"
+
+SB_INTERNAL SBBoolean SBCodepointSequenceIsValid(const SBCodepointSequence *codepointSequence)
+{
+    if (codepointSequence)
+        return SBTrue;
+
+    return SBFalse;
+}
+
+SBCodepoint SBCodepointSequenceGetCodepointAt(const SBCodepointSequence *codepointSequence, SBUInteger *stringIndex)
+{
+    SBCodepoint codepoint = SBCodepointInvalid;
+
+    if (*stringIndex < codepointSequence->length) {
+        const SBUInt32 *codepoints = codepointSequence->codepoints;
+
+        codepoint = codepointSequence->codepointAt(codepoints, *stringIndex);
+        *stringIndex += 1;
+
+        if (!SBCodepointIsValid(codepoint)) {
+            codepoint = SBCodepointFaulty;
+        }
+    }
+
+    return codepoint;
+}
